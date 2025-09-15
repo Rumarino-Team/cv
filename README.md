@@ -1,14 +1,6 @@
-PYTHON COMPUTER VISION ROS2 NODE:
-
-Getting started:
-1) Create Virtual Enviroment and source ROS2
-2) Run Node
-
-
-
 
 ### Create Virtual Enviroment
-We have run this module with the Python 3.12 version.
+ We have run this module with the Python 3.12 version.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
@@ -16,16 +8,17 @@ python -m pip install -r requirements.txt
 ```
 
 ### Activate workspace
-
-### TODO 
-do a symlink to the ros2 package into the ros2 workspace.
-
 ```bash
+mkdir -p ros2_ws/src
+ln hydrus_cv ros2_ws/src/hydrus_cv
 colcon build
+```
+### Running Bencharks
+```bash
+cd ../ # We are going to the script as a python module and for that we need to outside
+python -m cv.pyCV.benchmark
 ```
 
 
-
-### How to use the LSP
-
-# cv
+### Running  the Ros2 Computer Vision Node
+ TODO:

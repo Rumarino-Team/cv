@@ -6,9 +6,9 @@ import cv2
 import numpy as np
 import time
 import tracemalloc
-import sys
 from typing import Callable
-from pyCV.detection_core import YOLOModelManager, transform_to_global, calculate_point_3d
+from .custom_types import Detection
+from .detection_core import YOLOModelManager,  calculate_point_3d
 
 def log_performance(func: Callable, *args ):
     tracemalloc.start()
@@ -18,6 +18,7 @@ def log_performance(func: Callable, *args ):
     current, peak = tracemalloc.get_traced_memory()
     final_time = end - start
     return final_time, current, peak
+
 class MockVideo:
     def __init__(self,height: int , width: int, channels: int,frames: int, seed: int):
         self.height : int = height
@@ -35,6 +36,13 @@ class MockVideo:
             ret = False
         return (ret , image)
 
+class MockDetection:
+    def __init__(self, cls_number: int, detection_number: int ):
+        self.cls_range = range(0,cls_number)
+
+    def generate_detection(self,cls:bool, bbox : bool,  point3d: bool, bbox3d: bool):
+        #TODO
+
 
 
 def benchmark_yolo(yolo_model :str, frame_limit: int, video_path: str | None = None ,mock_data: bool  = False) -> list[float]:
@@ -42,7 +50,7 @@ def benchmark_yolo(yolo_model :str, frame_limit: int, video_path: str | None = N
     yolo_manager = YOLOModelManager(yolo_model)
     assert video_path and mock_data,  "If video path enable then mock data should be false."
     if mock_data:
-        cap = MockVideo(1080, 720, 3, 500, 0)
+        cap = MockVideo(1080, 720, 3, frame_limit, 0)
     else:
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
@@ -61,8 +69,14 @@ def benchmark_yolo(yolo_model :str, frame_limit: int, video_path: str | None = N
     return result
 
 
-def benchmark_transform_to_global():
-    pass
+def benchmark_calculate_point_3d(mock_data: bool, detections: list[Detection], :
+    """
+    This function expect a Detection object that have been filled with the ultralytics
+    """
+    if mock_data:
+        detection_generator = MockDetection(10, 20)
+        detections = detection_generator.generate_detection()
+    pass #TODO
 
 
 

@@ -1,4 +1,9 @@
 
+### Download repo with third_party
+Just download all the extra dependencies for running everything
+```bash
+git clone --recursive https://github.com/Rumarino-Team/cv.git
+```
 ### Create Virtual Enviroment
  We have run this module with the Python 3.12 version.
 ```bash
@@ -13,6 +18,7 @@ mkdir -p ros2_ws/src
 ln hydrus_cv ros2_ws/src/hydrus_cv
 colcon build
 ```
+
 ### Running Bencharks
 ```bash
 cd ../ # We are going to the script as a python module and for that we need to outside

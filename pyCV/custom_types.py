@@ -23,15 +23,32 @@ class BoundingBox3D:
     width: float
     height: float
     length: float
+
 @dataclass
 class Detection:
-    x1: float
-    y1: float
-    x2: float
-    y2: float
+    _x1 : int
+    _y1 : int
+    _x2 : int
+    _y2 : int
+    _cls: int
+    _conf : float
+    _distance: float | None
+    _point: Point3D | None
+    _bbox_3d: BoundingBox3D | None = None
+
+@dataclass
+class MapObject:
+    track_id: int  
     cls: int
     conf: float
-    depth: float = 0
-    point: Point3D | None = None
-    bbox_3d: BoundingBox3D| None  = None
+    point: Point3D
+    bbox_3d: BoundingBox3D
 
+
+
+@dataclass
+class MapState:
+    obj_frequencies: dict[str, int]
+    objects: list[MapObject]
+    id_counter: int
+    map_id_objects: dict[int, MapObject]

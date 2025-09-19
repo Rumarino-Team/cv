@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-from sympy import rotations
+from sre_parse import State
 import numpy as np
 from ultralytics import YOLO
-from .custom_types import BoundingBox3D, CameraIntrinsics, DepthImage, Detection, Rotation3D, Point3D
-import cv2
+from .custom_types import BoundingBox3D, CameraIntrinsics, DepthImage, Detection,MapState, MapObject, Rotation3D, Point3D
 import torch
 import glob
+import logging
+import math
+
+
 
 third_parties = glob.glob("auv/third_party/*")
 submodules_names = [module_path.split("/")[2] for module_path in third_parties]
@@ -105,7 +108,7 @@ class YOLOModelManager:
                     conf = float(box.conf.cpu().numpy()[0])
                     cls_w = int(box.cls.cpu().numpy()[0])
                     result_list.append(
-                        Detection(x1, y1, x2, y2, cls_w, conf, 0, None)
+                        MapObject(x1, y1, x2, y2, cls_w, conf, 0, None)
                     )
         return result_list
 
@@ -122,10 +125,10 @@ def calculate_point_3d(
     """
     for detection in detections:
         x_min, y_min, x_max, y_max = (
-            detection.x1,
-            detection.y1,
-            detection.x2,
-            detection.y2,
+            detection._x1,
+            detection._y1,
+            detection._x2,
+            detection._y2,
         )
         if depth_image is not None:
             x_min_int = int(x_min)
@@ -150,10 +153,10 @@ def calculate_point_3d(
                     detection.point = Point3D(x=x, y=y, z=z)
                 else:
                     detection.point = Point3D(x=0, y=0, z=0)
-                    detection.depth = 0
+                    detection._distance = 0
             else:
                 detection.point = Point3D(x=0, y=0, z=0)
-                detection.depth = 0
+                detection._distance = 0
 
 
 def quaternion_to_transform_matrix(rotation: Rotation3D) -> np.ndarray:
@@ -203,24 +206,81 @@ def transform_to_global(
     transform_matrix[0:3, 3] = [imu_point.x, imu_point.y, imu_point.z]
 
     for detection in detections:
-        if detection.point is not None:
+        if detection._point is not None:
             point_homogeneous = np.array(
-                [detection.point.x, detection.point.y, detection.point.z, 1.0]
+                [detection._point.x, detection._point.y, detection._point.z, 1.0]
             )
             point_global = np.dot(transform_matrix, point_homogeneous)
-            detection.point = Point3D(
+            detection._point = Point3D(
                 x=point_global[0], y=point_global[1], z=point_global[2]
             )
 
 def map_3d_bounding_box(detections: list[Detection], box_map: dict[str, tuple[float , float , float]]):
-    """
-    This function fills the bbox3d parameter of the detection object.
-    It will raise an error if we didnt previously calculated the 3d point.
-    """
     for detection in detections:
-        assert not detection.point, "Detection didnt had filled the 3d point attribute."
-        cls = str(detection.cls)
+        assert not detection._point, "Detection didnt had filled the 3d point attribute."
+        cls = str(detection._cls)
         bbox3d = BoundingBox3D(Rotation3D(0,0,0,0), box_map[cls][0], box_map[cls][1], box_map[cls][2])
-        detection.bbox_3d = bbox3d
+        detection._bbox_3d = bbox3d
         
+
+def calculate_distance(p1: Point3D, p2: Point3D) -> float:
+    return math.dist((p1.x, p1.y, p1.z), (p2.x, p2.y, p2.z))
+
+def map_objects(
+
+                state: MapState,
+                reference_counter: dict[str, int],
+                class_name: list[str],
+                box_map: dict[str, tuple[float , float , float]],
+                yolo_manager: YOLOModelManager,
+                image: np.ndarray,
+                camera_intrinsic: CameraIntrinsics,
+                depth_image: DepthImage | None = None,
+                imu_point: Point3D | None = None,
+                imu_rotation: Rotation3D | None = None,
+                **kwargs
+                ) :
+    # Check for threshold also add a  kalman filter
+    detections : list[Detection] = yolo_manager.detect(image)
+    if "depth_anything" in kwargs:
+        depth_detector = kwargs['depth_anything']
+        assert isinstance(depth_detector, DepthAnythingManager), f"It should of type DepthAnythingManager and its {type(depth_detector)}"
+        depth_image: DepthImage = depth_detector.detect(image)
+    
+    assert not depth_image , "Depth Image was not specified the pipeline needs a DepthImage"
+    assert not imu_point, "IMU point informatio was not provided"
+    assert not imu_rotation, "IMU rotation information was not provided"
+    calculate_point_3d(detections,depth_image,camera_intrinsic)
+    transform_to_global(detections, imu_point, imu_rotation)
+    map_3d_bounding_box(detections, box_map)
+
+
+    for detection in detections:
+        if reference_counter[class_name[detection._cls]] == 0:
+            new_object = MapObject(state.id_counter,detection._cls, detection._cls, detection._conf,detection._bbox_3d ) 
+            state.objects.append(new_object)
+            state.map_id_objects[state.id_counter] = new_object
+            state.id_counter += 1
+            state.obj_frequencies[class_name[detection._cls]] = 1
+
+
+   # Check for thresholds
+    new_object_theshold = 0.5
+    for object in state.objects:
+        best_object_match_distace = math.inf
+        best_object_match_id = 0
+        for detection in detections:
+            object_detection_distance = calculate_distance(object.point, detection._point) 
+            if object_detection_distance > new_object_theshold and object.cls == detection._cls:
+                state.objects.append(MapObject(state.id_counter,detection._cls, detection._cls, detection._conf,detection._bbox_3d ))
+                state.id_counter += 1
+                state.obj_frequencies[class_name[detection._cls]] += 1
+            elif object.cls == detection._cls and object_detection_distance < best_object_match_distace:
+                best_object_match_distace = object_detection_distance
+                best_object_match_id = object.track_id
+
+        #Update the objects position if needed:
+        # state.map_id_objects[best_object_match_id] = 
+       # TODO TO COMPLETE 
+
 

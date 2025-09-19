@@ -1,14 +1,15 @@
 # This python file should test with a small video replay the performance of the algorithms in terms
 # of latency.
 
-from unittest import mock
 import cv2
 import numpy as np
 import time
 import tracemalloc
 from typing import Callable
-from .custom_types import Detection
+from .custom_types import DepthImage, MapObject
 from .detection_core import YOLOModelManager,  calculate_point_3d
+import random
+
 
 def log_performance(func: Callable, *args ):
     tracemalloc.start()
@@ -69,14 +70,22 @@ def benchmark_yolo(yolo_model :str, frame_limit: int, video_path: str | None = N
     return result
 
 
-def benchmark_calculate_point_3d(mock_data: bool, detections: list[Detection], :
+def benchmark_calculate_point_3d(mock_data: bool, detections: list[MapObject], depth_frame: DepthImage, camera_intrinsic: list[float], frame_limit: int) :
     """
     This function expect a Detection object that have been filled with the ultralytics
     """
     if mock_data:
         detection_generator = MockDetection(10, 20)
+        mock_video = MockVideo(720,480, 1,300,0)
         detections = detection_generator.generate_detection()
-    pass #TODO
+    while True:
+        current_frame += 1
+        ret, depth_frame = cap.read()
+        camera_intrinsic = [random.random() for _ in range(4)]
+        if not ret or current_frame > frame_limit :
+            break    
+        bench_result = log_performance(calculate_point_3d, detections, depth_frame, camera_intrinsic) 
+        result.append(bench_result)
 
 
 

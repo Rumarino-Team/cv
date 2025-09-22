@@ -6,19 +6,9 @@ import numpy as np
 import time
 import tracemalloc
 from typing import Callable
-from .custom_types import DepthImage, MapObject
+from .custom_types import DepthImage, Detection
 from .detection_core import YOLOModelManager,  calculate_point_3d
 import random
-
-
-def log_performance(func: Callable, *args ):
-    tracemalloc.start()
-    start = time.perf_counter()
-    func(*args)
-    end = time.perf_counter()
-    current, peak = tracemalloc.get_traced_memory()
-    final_time = end - start
-    return final_time, current, peak
 
 class MockVideo:
     def __init__(self,height: int , width: int, channels: int,frames: int, seed: int):
@@ -46,6 +36,44 @@ class MockDetection:
 
 
 
+class OpenCVManager:
+    def __init__(self):
+        self.cameras = []
+        count = 0
+        try:
+            while count < 10:
+                self.cameras.append(cv2.VideoCapture(count))
+                count +=1
+        except:
+            print(f"A total of {count} cameras")
+    def run_cameras(self, visualization_function: Callable| None = None, *visualization_args):
+        for idx, camera in enumerate(self.cameras):
+            if not camera.isOpened():
+                print(f"error opening camera {idx}")
+        while True:
+            frames = [camera.read()[1] for camera in self.cameras]
+            #TODO: We should check if the frame was not read
+            for idx in range(self.cameras):
+                if visualization_function:
+                    visualization_function(*visualization_args);
+                cv2.imshow(f"Camera{idx}", frames[idx]);
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        for camera in self.cameras:
+            camera.release()
+        cv2.destroyAllWindows()
+
+
+def log_performance(func: Callable, *args ):
+    tracemalloc.start()
+    start = time.perf_counter()
+    func(*args)
+    end = time.perf_counter()
+    current, peak = tracemalloc.get_traced_memory()
+    final_time = end - start
+    return final_time, current, peak
+
+
 def benchmark_yolo(yolo_model :str, frame_limit: int, video_path: str | None = None ,mock_data: bool  = False) -> list[float]:
     
     yolo_manager = YOLOModelManager(yolo_model)
@@ -70,7 +98,7 @@ def benchmark_yolo(yolo_model :str, frame_limit: int, video_path: str | None = N
     return result
 
 
-def benchmark_calculate_point_3d(mock_data: bool, detections: list[MapObject], depth_frame: DepthImage, camera_intrinsic: list[float], frame_limit: int) :
+def benchmark_calculate_point_3d(mock_data: bool, detections: list[Detection], depth_frame: DepthImage, camera_intrinsic: list[float], frame_limit: int) :
     """
     This function expect a Detection object that have been filled with the ultralytics
     """
@@ -87,6 +115,10 @@ def benchmark_calculate_point_3d(mock_data: bool, detections: list[MapObject], d
         bench_result = log_performance(calculate_point_3d, detections, depth_frame, camera_intrinsic) 
         result.append(bench_result)
 
+
+def camera_map_object_visualization():
+    #TODO: 
+    pass
 
 
 if __name__ == "__main__":

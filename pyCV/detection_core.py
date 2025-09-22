@@ -220,8 +220,10 @@ def map_3d_bounding_box(detections: list[Detection], box_map: dict[str, tuple[fl
         assert not detection._point, "Detection didnt had filled the 3d point attribute."
         cls = str(detection._cls)
         bbox3d = BoundingBox3D(Rotation3D(0,0,0,0), box_map[cls][0], box_map[cls][1], box_map[cls][2])
-        detection._bbox_3d = bbox3d
-        
+        detection._bbox_3d = bbox3d        
+
+
+
 
 def calculate_distance(p1: Point3D, p2: Point3D) -> float:
     return math.dist((p1.x, p1.y, p1.z), (p2.x, p2.y, p2.z))
@@ -229,7 +231,6 @@ def calculate_distance(p1: Point3D, p2: Point3D) -> float:
 def map_objects(
 
                 state: MapState,
-                reference_counter: dict[str, int],
                 class_name: list[str],
                 box_map: dict[str, tuple[float , float , float]],
                 yolo_manager: YOLOModelManager,
@@ -254,33 +255,40 @@ def map_objects(
     transform_to_global(detections, imu_point, imu_rotation)
     map_3d_bounding_box(detections, box_map)
 
-
+    #First time seeing the object, update the state.
     for detection in detections:
-        if reference_counter[class_name[detection._cls]] == 0:
+        if state.obj_frequencies[class_name[detection._cls]] == 0:
             new_object = MapObject(state.id_counter,detection._cls, detection._cls, detection._conf,detection._bbox_3d ) 
-            state.objects.append(new_object)
             state.map_id_objects[state.id_counter] = new_object
-            state.id_counter += 1
             state.obj_frequencies[class_name[detection._cls]] = 1
-
+            state.id_counter += 1
 
    # Check for thresholds
     new_object_theshold = 0.5
-    for object in state.objects:
+    for id, object in state.map_id_objects.items():
         best_object_match_distace = math.inf
+        best_detection: Detection | None = None
         best_object_match_id = 0
         for detection in detections:
             object_detection_distance = calculate_distance(object.point, detection._point) 
+            # For the object founds  lets get the detection and see if it is a different object, my measuring the distance.
             if object_detection_distance > new_object_theshold and object.cls == detection._cls:
-                state.objects.append(MapObject(state.id_counter,detection._cls, detection._cls, detection._conf,detection._bbox_3d ))
+                new_object = MapObject(state.id_counter,detection._cls, detection._cls, detection._conf,detection._bbox_3d )
                 state.id_counter += 1
                 state.obj_frequencies[class_name[detection._cls]] += 1
+                state.map_id_objects[state.id_counter] = new_object
+           # If its less than the threshold then its the same object. We check in here which of all the objects it is
             elif object.cls == detection._cls and object_detection_distance < best_object_match_distace:
                 best_object_match_distace = object_detection_distance
+                best_detection = detection
                 best_object_match_id = object.track_id
 
         #Update the objects position if needed:
-        # state.map_id_objects[best_object_match_id] = 
-       # TODO TO COMPLETE 
+        state.map_id_objects[best_object_match_id].conf =best_detection._conf
+        state.map_id_objects[best_object_match_id].point = best_detection._point
+        state.map_id_objects[best_object_match_id].bbox_3d = best_detection._bbox_3d
+        # Add a Kalman Filter Logic somewhere overthere
+
+
 
 

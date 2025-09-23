@@ -48,7 +48,8 @@ class MapObject:
 
 @dataclass
 class MapState:
-    obj_frequencies: dict[str, int]
-    objects: list[MapObject]
-    id_counter: int
-    map_id_objects: dict[int, MapObject]
+    obj_frequencies: dict[str, int] = {}
+    objects: list[MapObject] = []
+    id_counter: int = 0
+    map_id_objects: dict[int, MapObject] = {}
+    point_clouds: list[np.ndarray] = []

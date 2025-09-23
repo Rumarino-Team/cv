@@ -28,3 +28,8 @@ python -m cv.pyCV.benchmark
 
 ### Running  the Ros2 Computer Vision Node
  TODO:
+
+
+### Using RVIZ2
+
+TODO:

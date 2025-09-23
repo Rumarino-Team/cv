@@ -92,7 +92,7 @@ def ros_img_to_cv2(msg, encoding="bgr8") -> np.ndarray:
 
 class YOLOModelManager:
     def __init__(self, model_path: str ):
-        self.model : YOLO  = YOLO(model_path)
+        self.model : YOLO  = YOLO()
     def detect(self, image: np.ndarray) -> list[Detection]:
         """
         Run YOLO object detection on an image.

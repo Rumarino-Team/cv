@@ -7,16 +7,17 @@ import time
 import tracemalloc
 from typing import Callable
 from .custom_types import CameraIntrinsics, DepthImage, Detection, MapState, Point3D, Rotation3D
-from .detection_core import YOLOModelManager,  calculate_point_3d, map_objects
+from .detection_core import DepthAnythingManager, YOLOModelManager,  calculate_point_3d, map_objects
 import random
 import copy
 class MockVideo:
-    def __init__(self,height: int , width: int, channels: int,frames: int, seed: int):
+    def __init__(self,height: int , width: int, channels: int,frames: int, seed: int, cameras:int = 1):
         self.height : int = height
         self.width: int = width
         self.channels: int  = channels
         self.frames: int = frames
-        self.frame_counter: int = 0
+        self.cameras: int = cameras
+        self.frame_counter: int = cameras
         np.random.seed(seed)
 
     def read(self)-> tuple[bool, np.ndarray] :
@@ -27,13 +28,28 @@ class MockVideo:
             ret = False
         return (ret , image)
 
+    def get_frames(self) ->list[np.ndarray]:
+        return []
 
+class MockCamera:
+    def __init__(self,height:int , width: int,channels: int, seed: int,cameras:int):
+        self.cameras: int = cameras
+        self.height : int = height
+        self.width   :int = width
+        self.channels:int     = channels
+        self.seed   : int= seed
+        np.random.seed(seed)
+
+
+    def get_frames(self):
+        return [np.random.randint(low = 0, high = 255, size =(self.height,self.width,self.channels), dtype= np.uint8)
+                for _ in range(self.cameras)]
 class MockIMU:
     def __init__(self):
         self.start_point: Point3D = Point3D(0,0,0)
         self.start_rotation: Rotation3D = Rotation3D(0,0,0,0)
         self.point_trajectory: list[Point3D] = [self.start_point]
-        self.rotation_trajectory: list[Rotation3D] = []
+        self.rotation_trajectory: list[Rotation3D] = [self.start_rotation]
 
 
     def generate_straight_line(self,axis : int, step: float):
@@ -165,12 +181,14 @@ def calibrate_camera(calibration_image_path: str )-> CameraIntrinsics:
 
 
 def camera_simulation():
-    cv_manager = OpenCVManager()
-    yolo_model = YOLOModelManager("yolov11.pt")
+    cv_manager = MockCamera(1280,720,3, 0,1)
+    # cv_manager = OpenCVManager()
+    yolo_model = YOLOModelManager("./yolov11.pt")
     class_names = ["gate", "buoy", "shark", "swordfish"]
     box_map = {"gate": (2.0,3.0,4.0)}
-    camera_intrinsics = calibrate_camera("./calibration_images")
-    depth_anything_enable = True
+    camera_intrinsics = (1.0,2.0,3.0,4.0)
+    # camera_intrinsics = calibrate_camera("./calibration_images")
+    depth_anything = DepthAnythingManager("depth_anything.pt")
     imu_mock = MockIMU()
     map_state = MapState()
 
@@ -183,6 +201,7 @@ def camera_simulation():
         point, rotation = imu_mock.get_last_orientation()
         map_objects(map_state, class_names, box_map, yolo_model, frames[0], camera_intrinsics,
                     imu_point= point, imu_rotation= rotation, depth_anything = depth_anything_enable)
+        print(map_state)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
     cv_manager.release()
@@ -191,7 +210,8 @@ def camera_simulation():
 if __name__ == "__main__":
     video_path = "no video"
     yolo_path  = "./yolo11n.pt"
-    benchmark_yolo(video_path= video_path, yolo_model=yolo_path,frame_limit=40, mock_data=True)
+    camera_simulation()
+    #benchmark_yolo(video_path= video_path, yolo_model=yolo_path,frame_limit=40, mock_data=True)
 
     
     

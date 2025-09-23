@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import numpy as np
 
 CameraIntrinsics = tuple[float, float, float, float]
@@ -48,8 +48,8 @@ class MapObject:
 
 @dataclass
 class MapState:
-    obj_frequencies: dict[str, int] = {}
-    objects: list[MapObject] = []
+    obj_frequencies: dict[str, int] = field(default_factory=dict)
+    objects: list[MapObject] = field(default_factory=list)
     id_counter: int = 0
-    map_id_objects: dict[int, MapObject] = {}
-    point_clouds: list[np.ndarray] = []
+    map_id_objects: dict[int, MapObject] = field(default_factory=dict)
+    point_clouds: list[np.ndarray] = field(default_factory=list)

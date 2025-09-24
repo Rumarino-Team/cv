@@ -1,14 +1,14 @@
-import requests
 import hashlib
+import subprocess
 from collections import namedtuple
 import glob
 ModelWeights = namedtuple("ModelWeights",["name", "url", "path", "hash"])
 model_paths = {
 
         "dav2_s": ModelWeights('dav2_s', "https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth?download=true",\
-                "weights/dav2_s.pt", "00123124"),
+                "weights/dav2_s.pt", "715fade13be8f229f8a70cc02066f656f2423a59effd0579197bbf57860e1378"),
         "dav2_b": ModelWeights('dav2_b',"https://huggingface.co/depth-anything/Depth-Anything-V2-Base/resolve/main/depth_anything_v2_vitb.pth?download=true",
-                               "weights/dav2_b.pt", "0124887124")
+                               "weights/dav2_b.pt", "0d2b7002e62d39d655571c371333340bd88f67ab95050c03591555aa05645328")
         }
 
 
@@ -27,33 +27,25 @@ def choose_download_model():
     picked_model : int = -1 
     while picked_model < 0 or picked_model > len(model_paths):
         for idx, model_name in enumerate(model_paths):
-            print(f"({idx-1}) : {model_name}")
-        picked_model = input(f"Choose a model between <{0}, {len(model_paths) -1}: ")
+            print(f"({idx}) : {model_name}")
+        picked_model = int(input(f"Choose a model between [{0}, {len(model_paths) -1}]: "))
 
-    model_weights = list(model_paths)[picked_model]
+    model_weights = list(model_paths.items())[picked_model][1]
     if not glob.glob(model_weights.path):
-        r = requests.get(model_weights.url, stream=True)
-        with open(model_weights.path, "wb") as f:
-            for chunk in r.iter_content(8192):
-                f.write(chunk)
+        try:
+            subprocess.run(
+                    ["curl", "-L", model_weights.url, "-o", model_weights.path],
+                    check=True)
+            print(f"Downloaded: {model_weights.path}")
 
+        except subprocess.CalledProcessError as e:
+            print("Download failed:", e)
     if model_weights.hash != helper_calculate_hash(model_weights.path):
         raise Exception("The Model in disk doesnt have the same hash. The model its probably corrupted.")
 
-    print(" Model has been Downloaded correctly!!")
 
 
 
 if __name__ == "__main__":
-    print("Options:")
-    print("1) Calculate hash of models weights.")
-    print("2) Download the models weights.")
-    option = int(input("Option: "))
+    choose_download_model()
 
-    if option == 1:
-        choose_download_model()
-    elif option ==2:
-        raise Exception("Not yet Implemented")
-
-    else:
-        print("Try Again  Stupid.")

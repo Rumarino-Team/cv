@@ -19,12 +19,12 @@ if "depth_anything_v2" in submodules_names:
         def __init__(self, model_path: str):
             self.device ='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
             self.model_config ={'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]}
-            self.model = DepthAnythingV2(**model_configs)
-            self.model.load_state_dict(torch.load(model_path), map_location="cpu")
+            self.model = DepthAnythingV2(**self.model_config)
+            self.model.load_state_dict(torch.load(model_path, map_location="cpu"))
             self.model.to(self.device).eval()
 
         def detect(self, image: np.ndarray) -> DepthImage:
-            return self.model.infer_image(image).numpy()
+            return self.model.infer_image(image)
 
 
 
@@ -248,9 +248,9 @@ def map_objects(
         assert isinstance(depth_detector, DepthAnythingManager), f"It should of type DepthAnythingManager and its {type(depth_detector)}"
         depth_image: DepthImage = depth_detector.detect(image)
     
-    assert not depth_image , "Depth Image was not specified the pipeline needs a DepthImage"
-    assert not imu_point, "IMU point informatio was not provided"
-    assert not imu_rotation, "IMU rotation information was not provided"
+    assert  depth_image.any() , "Depth Image was not specified the pipeline needs a DepthImage"
+    assert  imu_point, "IMU point informatio was not provided"
+    assert  imu_rotation, "IMU rotation information was not provided"
     calculate_point_3d(detections,depth_image,camera_intrinsic)
     transform_to_global(detections, imu_point, imu_rotation)
     map_3d_bounding_box(detections, box_map)

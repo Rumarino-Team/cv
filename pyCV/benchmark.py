@@ -188,7 +188,7 @@ def camera_simulation():
     box_map = {"gate": (2.0,3.0,4.0)}
     camera_intrinsics = (1.0,2.0,3.0,4.0)
     # camera_intrinsics = calibrate_camera("./calibration_images")
-    depth_anything = DepthAnythingManager("depth_anything.pt")
+    depth_anything = DepthAnythingManager("auv/weights/dav2_s.pt")
     imu_mock = MockIMU()
     map_state = MapState()
 
@@ -200,7 +200,7 @@ def camera_simulation():
         imu_mock.generate_straight_line(axis = 1, step = 0.3)
         point, rotation = imu_mock.get_last_orientation()
         map_objects(map_state, class_names, box_map, yolo_model, frames[0], camera_intrinsics,
-                    imu_point= point, imu_rotation= rotation, depth_anything = depth_anything_enable)
+                    imu_point= point, imu_rotation= rotation, depth_anything = depth_anything)
         print(map_state)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break

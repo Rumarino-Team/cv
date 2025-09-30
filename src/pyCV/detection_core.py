@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from sre_parse import State
 import numpy as np
 from ultralytics import YOLO
 from .custom_types import BoundingBox3D, CameraIntrinsics, DepthImage, Detection,MapState, MapObject, Rotation3D, Point3D
@@ -14,7 +13,7 @@ third_parties = glob.glob("auv/third_party/*")
 submodules_names = [module_path.split("/")[2] for module_path in third_parties]
 # This is optional because its not the only way we can  calculate Depth Images. So I dont want to force people to install it if they are not using it.
 if "depth_anything_v2" in submodules_names:
-    from ..third_party.depth_anything_v2.depth_anything_v2.dpt import DepthAnythingV2
+    from ...third_party.depth_anything_v2.depth_anything_v2.dpt import DepthAnythingV2
     class DepthAnythingManager:
         def __init__(self, model_path: str):
             self.device ='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'

@@ -1,4 +1,3 @@
-uint32 id
-uint32 class
+int32 cls
 vision_msgs/BoundingBox3D bbox
 

@@ -22,12 +22,19 @@ colcon build
 ### Running Bencharks
 ```bash
 cd ../ # We are going to the script as a python module and for that we need to outside
-python -m cv.pyCV.benchmark
+python -m src.pyCV.benchmark
 ```
 
+### Install Ros2 and dependencies
+```bash
+sudo apt update
+sudo apt install ros-jazzy-vision-msgs
+sudo apt install ros-jazzy-sensor-msgs
+sudo apt install ros-jazzy-geometry-msgs
+```
 
 ### Running  the Ros2 Computer Vision Node
- TODO:
+ 
 
 
 ### Using RVIZ2

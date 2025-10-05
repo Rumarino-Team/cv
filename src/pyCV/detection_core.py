@@ -10,7 +10,7 @@ import math
 
 
 third_parties = glob.glob("auv/third_party/*")
-submodules_names = [module_path.split("/")[2] for module_path in third_parties]
+submodules_names = [module_path.split("/")[-1] for module_path in third_parties]
 # This is optional because its not the only way we can  calculate Depth Images. So I dont want to force people to install it if they are not using it.
 if "depth_anything_v2" in submodules_names:
     from ...third_party.depth_anything_v2.depth_anything_v2.dpt import DepthAnythingV2
@@ -25,67 +25,6 @@ if "depth_anything_v2" in submodules_names:
         def detect(self, image: np.ndarray) -> DepthImage:
             return self.model.infer_image(image)
 
-
-
-
-
-def ros_img_to_cv2(msg, encoding="bgr8") -> np.ndarray:
-    """
-    Convert a ROS sensor_msgs/Image message to an OpenCV numpy array.
-    :param msg: ROS Image message
-    :param encoding: Desired encoding ("bgr8", "mono8", "mono16", "32FC1")
-    :return: OpenCV numpy array
-    """
-    if encoding not in ["bgr8", "mono8", "mono16", "32FC1"]:
-        raise ValueError(f"Unsupported encoding: {encoding}")
-
-    dtype_map = {
-        "bgr8": np.uint8,
-        "mono8": np.uint8,
-        "mono16": np.uint16,
-        "32FC1": np.float32,
-    }
-
-    dtype = dtype_map[encoding]
-
-    # Calculate expected array size based on encoding and dimensions
-    channels = 3 if encoding == "bgr8" else 1
-    expected_size = msg.height * msg.width * channels
-    actual_size = len(msg.data)
-
-    if actual_size != expected_size:
-        # Try to infer correct dimensions based on actual data size
-        if encoding == "bgr8" and actual_size % 3 == 0:
-            total_pixels = actual_size // 3
-            # Try to determine if width is correct but height is wrong
-            if total_pixels % msg.width == 0:
-                corrected_height = total_pixels // msg.width
-                img_array = np.frombuffer(msg.data, dtype=dtype).reshape(
-                    (corrected_height, msg.width, 3)
-                )
-                return img_array
-
-    # Convert the byte data to a NumPy array
-    img_array = np.frombuffer(msg.data, dtype=dtype)
-
-    try:
-        # Reshape based on image dimensions and encoding
-        if encoding == "bgr8":
-            # Use step value if available for proper alignment
-            if msg.step > 0 and msg.step >= msg.width * 3:
-                img_array = img_array.reshape((msg.height, msg.width, 3))
-            else:
-                img_array = np.reshape(img_array, (msg.height, msg.width, 3))
-        else:
-            # Single-channel
-            img_array = np.reshape(img_array, (msg.height, msg.width))
-
-        return img_array
-
-    except Exception as e:
-        raise ValueError(
-            f"Reshape failed: {e}. Image info: height={msg.height}, width={msg.width}, step={msg.step}, encoding={msg.encoding}"
-        )
 
 
 
@@ -242,11 +181,6 @@ def map_objects(
                 ) :
     # Check for threshold also add a  kalman filter
     detections : list[Detection] = yolo_manager.detect(image)
-    if "depth_anything" in kwargs:
-        depth_detector = kwargs['depth_anything']
-        assert isinstance(depth_detector, DepthAnythingManager), f"It should of type DepthAnythingManager and its {type(depth_detector)}"
-        depth_image: DepthImage = depth_detector.detect(image)
-    
     assert  depth_image.any() , "Depth Image was not specified the pipeline needs a DepthImage"
     assert  imu_point, "IMU point informatio was not provided"
     assert  imu_rotation, "IMU rotation information was not provided"

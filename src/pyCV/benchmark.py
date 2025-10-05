@@ -191,7 +191,7 @@ def camera_simulation():
     depth_anything = DepthAnythingManager("auv/weights/dav2_s.pt")
     imu_mock = MockIMU()
     map_state = MapState()
-
+    
     while True:
         frames = cv_manager.get_frames()
         for idx, frame in enumerate(frames):
@@ -199,12 +199,12 @@ def camera_simulation():
 
         imu_mock.generate_straight_line(axis = 1, step = 0.3)
         point, rotation = imu_mock.get_last_orientation()
+        depth_image = depth_anything.detect(frame)
         map_objects(map_state, class_names, box_map, yolo_model, frames[0], camera_intrinsics,
-                    imu_point= point, imu_rotation= rotation, depth_anything = depth_anything)
+                    imu_point= point, imu_rotation= rotation, depth_image = depth_image)
         print(map_state)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
-    cv_manager.release()
 
 
 if __name__ == "__main__":

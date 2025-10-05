@@ -31,12 +31,40 @@ sudo apt update
 sudo apt install ros-jazzy-vision-msgs
 sudo apt install ros-jazzy-sensor-msgs
 sudo apt install ros-jazzy-geometry-msgs
+sudo apt install ros-jazzy-rviz2
+sudo apt install libogre-1.12-dev
+
 ```
-
 ### Running  the Ros2 Computer Vision Node
- 
-
 
 ### Using RVIZ2
 
-TODO:
+### Using USBCamera in ROS2
+install package
+```bash
+sudo apt install ros-jazzy-usb-cam
+sudo apt install python3-pydantic
+```
+Run the camera node
+```bash
+cd ros2_ws
+source install/setup.bash
+ros2 launch usb_cam camera.launch.py
+
+``` 
+
+### Optional ORB_SLAM3
+#IN PROGRESS
+link to the ORB_SLAM ROS2 app
+https://github.com/Cruiz102/ORB_SLAM3.git
+
+### hydrus_cv packages services and launches
+
+#TODO
+
+
+
+ 
+
+
+

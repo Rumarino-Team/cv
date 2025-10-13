@@ -6,13 +6,20 @@ from vision_msgs.msg import BoundingBox3D
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point, Pose, Quaternion, Vector3 
 from message_filters import Subscriber, ApproximateTimeSynchronizer
-from ...pyCV.detection_core import DepthAnythingManager, YOLOModelManager, map_objects 
-from ...pyCV.custom_types import CameraIntrinsics, Point3D, Rotation3D
-from ...pyCV.custom_types import MapObject as pyMapObject
-from ...pyCV.custom_types import MapState as pyMapState
 import numpy as np
 import glob 
 import os
+import sys
+
+# Add the parent 'src' directory to the Python path to access pyCV
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+
+from hydrus_cv.hydrus_cv.detection_core import DepthAnythingManager, YOLOModelManager, map_objects 
+from hydrus_cv.hydrus_cv.custom_types import CameraIntrinsics, Point3D, Rotation3D, DepthImage
+from hydrus_cv.hydrus_cv.custom_types import MapObject as pyMapObject
+from hydrus_cv.hydrus_cv.custom_types import MapState as pyMapState
 
 depth_anything_paths = glob.glob("weights/da*.pt")
 yolo_model_paths = glob.glob("weights/yolo*.pt")
@@ -156,7 +163,7 @@ class ComputerVisionPublisher(Node):
 
     def ros_map_objects(self):
         if self.depth_anything_model:
-            self.last_depth: DepthImage = depth_detector.detect(self.last_rgb)
+            self.last_depth: DepthImage = self.depth_anything_model.detect(self.last_rgb)
     
  
         map_objects(self.map_state,self.class_name, self.box_map, self.yoloManager,self.last_rgb, 

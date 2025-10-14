@@ -16,10 +16,10 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-from hydrus_cv.hydrus_cv.detection_core import DepthAnythingManager, YOLOModelManager, map_objects 
-from hydrus_cv.hydrus_cv.custom_types import CameraIntrinsics, Point3D, Rotation3D, DepthImage
-from hydrus_cv.hydrus_cv.custom_types import MapObject as pyMapObject
-from hydrus_cv.hydrus_cv.custom_types import MapState as pyMapState
+from hydrus_cv.detection_core import DepthAnythingManager, YOLOModelManager, map_objects 
+from hydrus_cv.custom_types import CameraIntrinsics, Point3D, Rotation3D, DepthImage
+from hydrus_cv.custom_types import MapObject as pyMapObject
+from hydrus_cv.custom_types import MapState as pyMapState
 
 depth_anything_paths = glob.glob("weights/da*.pt")
 yolo_model_paths = glob.glob("weights/yolo*.pt")

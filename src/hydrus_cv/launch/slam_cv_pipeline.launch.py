@@ -33,7 +33,7 @@ def generate_launch_description():
     
     # Get absolute paths
     weights_dir = os.path.join(os.path.expanduser('~'), 'Projects', 'auv', 'weights')
-    orb_slam_pkg_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'orb_slam')
+    orb_slam_pkg_dir = os.path.join(os.path.expanduser('~'), 'Projects', 'auv', 'src', 'orb_slam')
     orb_slam3_dir = os.path.join(os.path.expanduser('~'), 'Projects', 'ORB_SLAM3')
     
     # ========== Launch Arguments ==========

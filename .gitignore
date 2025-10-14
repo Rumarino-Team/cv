@@ -2,3 +2,9 @@
 ros2_ws
 __pycache__
 *.pt
+
+# ORB-SLAM3 vocabulary files (large files)
+third_party/ORBvoc.txt
+third_party/ORBvoc.txt.tar.gz
+third_party/*.txt
+third_party/*.tar.gz

@@ -33,7 +33,7 @@ find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
 
 # ORB_SLAM3 - use direct library path instead of broken find_package
-set(ORB_SLAM3_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
+set(ORB_SLAM3_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/ORB_SLAM3)
 set(ORB_SLAM3_INCLUDE_DIRS
   ${ORB_SLAM3_ROOT_DIR}
   ${ORB_SLAM3_ROOT_DIR}/include

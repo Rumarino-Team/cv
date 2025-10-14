@@ -36,12 +36,16 @@ sudo apt install ros-jazzy-usb-cam
 
 #Orb SLAM dependencies
 sudo apt install libopencv-dev libeigen3-dev libboost-all-dev libssl-dev
+sudo apt install ros-jazzy-pangolin
 ```
 
 ### Install Orb Slam
 
 ### Building Orb Slam
 ```bash
+cd third_party
+wget https://github.com/UZ-SLAMLab/ORB_SLAM3/raw/refs/heads/master/Vocabulary/ORBvoc.txt.tar.gz
+tar -xf ORBvoc.txt.tar.gz
 git clone https://github.com/Cruiz102/ORB_SLAM3.git
 #build everything with a single command
 cd ORB_SLAM3

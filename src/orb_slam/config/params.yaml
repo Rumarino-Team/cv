@@ -1,10 +1,10 @@
 # ROS2 Parameters for ORB-SLAM3 Node
 
-orb_slam3_node:
+orb_slam3_mono:
   ros__parameters:
     # ORB-SLAM3 Configuration Files
-    vocabulary_path: "/home/cesar/Projects/ORB_SLAM3/Vocabulary/ORBvoc.txt"
-    settings_path: "/home/cesar/Projects/ORB_SLAM3/ROS2/config/webcam.yaml"
+    vocabulary_path: "/home/cesar/Projects/auv/third_party/ORBvoc.txt"
+    settings_path: "/home/cesar/Projects/auv/src/orb_slam/config/webcam.yaml"
     use_viewer: true
     
     # Sensor Configuration

@@ -12,7 +12,7 @@ def generate_launch_description():
     # Declare launch arguments
     vocabulary_arg = DeclareLaunchArgument(
         'vocabulary',
-        default_value=os.path.join(orb_slam3_dir, 'Vocabulary', 'ORBvoc.txt'),
+        default_value='/home/cesar/Projects/auv/third_party/ORBvoc.txt',
         description='Path to ORB vocabulary file'
     )
     

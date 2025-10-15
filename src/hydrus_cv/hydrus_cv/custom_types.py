@@ -32,8 +32,8 @@ class Detection:
     _y2 : int
     _cls: int
     _conf : float
-    _distance: float | None
-    _point: Point3D | None
+    _distance: float | None = None
+    _point: Point3D | None = None
     _bbox_3d: BoundingBox3D | None = None
 
 @dataclass

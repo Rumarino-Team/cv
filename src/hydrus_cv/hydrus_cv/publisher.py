@@ -75,6 +75,20 @@ class ComputerVisionPublisher(Node):
                 exception_message += f"{idx}) {path} \n"
             raise Exception(exception_message)
         self.yoloManager = YOLOModelManager(yolo_model_path)
+        
+        # Initialize class names for YOLO detection (standard underwater objects)
+        self.class_name = ["gate", "buoy", "shark", "swordfish", "person", "bottle", "boat"]
+        
+        # Initialize bounding box dimensions (width, height, depth) for each class
+        self.box_map = {
+            "gate": (2.0, 3.0, 0.5),
+            "buoy": (0.3, 0.3, 0.3), 
+            "shark": (2.0, 0.5, 0.3),
+            "swordfish": (1.0, 0.2, 0.2),
+            "person": (0.6, 1.8, 0.3),
+            "bottle": (0.1, 0.3, 0.1),
+            "boat": (5.0, 2.0, 1.5)
+        }
 
         topics = self.get_topic_names_and_types()
         topic_names = [name for name, _ in topics]
@@ -162,9 +176,19 @@ class ComputerVisionPublisher(Node):
 
 
     def ros_map_objects(self):
-        if self.depth_anything_model:
+        # Check if we have all required data before processing
+        if self.last_rgb is None or self.last_cam_intrinsic is None or self.last_position is None or self.last_rotation is None:
+            self.get_logger().debug("Waiting for all sensor inputs to be available...")
+            return
+            
+        # Use DepthAnything model if available, otherwise use subscribed depth
+        if self.depth_anything_model and self.last_rgb is not None:
             self.last_depth: DepthImage = self.depth_anything_model.detect(self.last_rgb)
-    
+        
+        # Final check that we have depth data
+        if self.last_depth is None:
+            self.get_logger().debug("No depth data available, skipping object mapping...")
+            return
  
         map_objects(self.map_state,self.class_name, self.box_map, self.yoloManager,self.last_rgb, 
                     self.last_cam_intrinsic, self.last_depth, self.last_position, self.last_rotation)

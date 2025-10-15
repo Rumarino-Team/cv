@@ -57,7 +57,7 @@ class YOLOModelManager:
                     conf = float(box.conf.cpu().numpy()[0])
                     cls_w = int(box.cls.cpu().numpy()[0])
                     result_list.append(
-                        MapObject(x1, y1, x2, y2, cls_w, conf, 0, None)
+                        Detection(x1, y1, x2, y2, cls_w, conf, 0, None)
                     )
         return result_list
 

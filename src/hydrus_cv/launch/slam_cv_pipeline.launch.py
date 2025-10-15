@@ -1,6 +1,7 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument
+from launch_ros.parameter_descriptions import ParameterValue
+from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.substitutions import LaunchConfiguration
 import os
 
@@ -78,8 +79,8 @@ def generate_launch_description():
     
     depth_topic_arg = DeclareLaunchArgument(
         'depth_topic',
-        default_value='/camera1/depth',
-        description='Topic name for depth images'
+        default_value='/depth_anything/depth',
+        description='Topic name for depth images consumed by ORB-SLAM and CV pipeline'
     )
     
     camera_info_topic_arg = DeclareLaunchArgument(
@@ -105,6 +106,48 @@ def generate_launch_description():
         'use_orb_viewer',
         default_value='true',
         description='Enable ORB-SLAM3 viewer'
+    )
+
+    orb_use_depth_arg = DeclareLaunchArgument(
+        'orb_use_depth',
+        default_value='true',
+        description='Enable RGB-D mode in ORB-SLAM3'
+    )
+
+    orb_pose_topic_arg = DeclareLaunchArgument(
+        'orb_pose_topic',
+        default_value='orb_slam3/camera_pose',
+        description='Topic name for ORB-SLAM3 pose output'
+    )
+
+    orb_path_topic_arg = DeclareLaunchArgument(
+        'orb_path_topic',
+        default_value='orb_slam3/camera_path',
+        description='Topic name for ORB-SLAM3 path output'
+    )
+
+    orb_world_frame_arg = DeclareLaunchArgument(
+        'orb_world_frame',
+        default_value='world',
+        description='TF frame id for ORB-SLAM3 world frame'
+    )
+
+    orb_camera_frame_arg = DeclareLaunchArgument(
+        'orb_camera_frame',
+        default_value='camera',
+        description='TF frame id for ORB-SLAM3 camera frame'
+    )
+
+    orb_queue_size_arg = DeclareLaunchArgument(
+        'orb_queue_size',
+        default_value='10',
+        description='Queue size for ORB-SLAM3 subscriptions and publishers'
+    )
+
+    orb_publish_tf_arg = DeclareLaunchArgument(
+        'orb_publish_tf',
+        default_value='true',
+        description='Publish TF transforms for ORB-SLAM3 pose'
     )
     
     # CV Model paths
@@ -137,9 +180,9 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'video_device': LaunchConfiguration('camera_device'),
-            'image_width': LaunchConfiguration('image_width'),
-            'image_height': LaunchConfiguration('image_height'),
-            'framerate': LaunchConfiguration('framerate'),
+            'image_width': ParameterValue(LaunchConfiguration('image_width'), value_type=int),
+            'image_height': ParameterValue(LaunchConfiguration('image_height'), value_type=int),
+            'framerate': ParameterValue(LaunchConfiguration('framerate'), value_type=float),
             'pixel_format': LaunchConfiguration('pixel_format'),
             'camera_frame_id': 'camera',
             'io_method': 'mmap',
@@ -159,22 +202,20 @@ def generate_launch_description():
         parameters=[{
             'vocabulary_path': LaunchConfiguration('orb_vocabulary'),
             'settings_path': LaunchConfiguration('orb_settings'),
-            'use_viewer': LaunchConfiguration('use_orb_viewer'),
-            'use_depth': False,  # Monocular mode
+            'use_viewer': ParameterValue(LaunchConfiguration('use_orb_viewer'), value_type=bool),
+            'use_depth': ParameterValue(LaunchConfiguration('orb_use_depth'), value_type=bool),
             'image_topic': LaunchConfiguration('rgb_topic'),
-            'pose_topic': 'orb_slam3/camera_pose',
-            'path_topic': 'orb_slam3/camera_path',
-            'world_frame_id': 'world',
-            'camera_frame_id': 'camera',
-            'queue_size': 10,
-            'publish_tf': True,
+            'depth_topic': LaunchConfiguration('depth_topic'),
+            'pose_topic': LaunchConfiguration('orb_pose_topic'),
+            'path_topic': LaunchConfiguration('orb_path_topic'),
+            'world_frame_id': LaunchConfiguration('orb_world_frame'),
+            'camera_frame_id': LaunchConfiguration('orb_camera_frame'),
+            'queue_size': ParameterValue(LaunchConfiguration('orb_queue_size'), value_type=int),
+            'publish_tf': ParameterValue(LaunchConfiguration('orb_publish_tf'), value_type=bool),
         }],
-        arguments=[
-            LaunchConfiguration('orb_vocabulary'),
-            LaunchConfiguration('orb_settings'),
-        ],
         remappings=[
             ('/camera/image_raw', LaunchConfiguration('rgb_topic')),
+            ('/camera/depth/image_raw', LaunchConfiguration('depth_topic')),
         ]
     )
     
@@ -186,9 +227,9 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'rgb_topic': LaunchConfiguration('rgb_topic'),
-            'depth_output_topic': '/depth_anything/depth',
+            'depth_output_topic': LaunchConfiguration('depth_topic'),
             'depth_model_path': LaunchConfiguration('depth_model_path'),
-            'publish_rate': LaunchConfiguration('depth_publish_rate'),
+            'publish_rate': ParameterValue(LaunchConfiguration('depth_publish_rate'), value_type=float),
         }]
     )
     
@@ -200,9 +241,9 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'rgb_topic': LaunchConfiguration('rgb_topic'),
-            'depth_topic': '/depth_anything/depth',  # Use depth from depth_publisher
+            'depth_topic': LaunchConfiguration('depth_topic'),
             'camera_info_topic': LaunchConfiguration('camera_info_topic'),
-            'imu_topic': 'orb_slam3/camera_pose',  # Use pose from ORB-SLAM3
+            'imu_topic': LaunchConfiguration('orb_pose_topic'),
             'yolo_model_path': LaunchConfiguration('yolo_model_path'),
             'depth_model_path': LaunchConfiguration('depth_model_path'),
         }]
@@ -223,13 +264,31 @@ def generate_launch_description():
         orb_vocabulary_arg,
         orb_settings_arg,
         use_orb_viewer_arg,
+        orb_use_depth_arg,
+        orb_pose_topic_arg,
+        orb_path_topic_arg,
+        orb_world_frame_arg,
+        orb_camera_frame_arg,
+        orb_queue_size_arg,
+        orb_publish_tf_arg,
         depth_model_path_arg,
         yolo_model_path_arg,
         depth_publish_rate_arg,
         
-        # Nodes
+        # Nodes - Launch order optimized
+        # 1. Start camera and depth publisher first
         usb_cam_node,
-        orb_slam3_node,
         depth_publisher_node,
-        cv_publisher_node,
+        
+        # 2. Delay ORB-SLAM3 to allow depth publisher to initialize (5 seconds)
+        TimerAction(
+            period=5.0,
+            actions=[orb_slam3_node]
+        ),
+        
+        # 3. Start CV publisher after ORB-SLAM is ready
+        TimerAction(
+            period=7.0,
+            actions=[cv_publisher_node]
+        ),
     ])

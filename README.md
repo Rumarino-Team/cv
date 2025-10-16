@@ -3,6 +3,7 @@
 Just download all the extra dependencies for running everything
 ```bash
 git clone --recursive https://github.com/Rumarino-Team/cv.git
+cd cv
 ```
 ### Create Virtual Enviroment
  We have run this module with the Python 3.12 version.
@@ -12,15 +13,15 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt 
 ```
 
-### Activate workspace
+### Create workspace
 ```bash
 mkdir -p ros2_ws/src
 ln hydrus_cv ros2_ws/src/hydrus_cv
-colcon build
 ```
 
 ### Running Bencharks
 ```bash
+cd ros2_ws
 python -m src.hydrus_cv.hydrus_cv.benchmark
 ```
 
@@ -39,8 +40,6 @@ sudo apt install libopencv-dev libeigen3-dev libboost-all-dev libssl-dev
 sudo apt install ros-jazzy-pangolin
 ```
 
-### Install Orb Slam
-
 ### Building Orb Slam
 ```bash
 cd third_party
@@ -54,40 +53,16 @@ sudo ./build.sh
 ```
 
 
-### Building Ros2 Orb Slam 
+### Building Ros Packages
 ```bash
 # Build
-cd ~/ros2_ws
-source /opt/ros/humble/setup.bash
-colcon build --packages-select orb_slam3_ros2
+./build.sh
+source /opt/ros/jazzy/setup.bash
 source install/setup.bash
 
-# Run with webcam
-ros2 launch orb_slam3_ros2 mono_webcam.launch.py
-```
-
 ```
 
 
-
-### Ros2 Launch commands
-
-#### Combined SLAM + Computer Vision Pipeline
-Run both ORB-SLAM3 and HydrusCV together for complete localization and object detection:
-```bash
-cd ros2_ws
-source install/setup.bash
-ros2 launch hydrus_cv slam_cv_pipeline.launch.py
-```
-
-With custom parameters:
-```bash
-ros2 launch hydrus_cv slam_cv_pipeline.launch.py \
-    camera_device:=/dev/video2 \
-    image_width:=1280 \
-    image_height:=720 \
-    use_orb_viewer:=false
-```
 
 #### Individual Components
 

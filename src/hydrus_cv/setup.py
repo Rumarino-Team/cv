@@ -19,7 +19,7 @@ setup(
         'numpy>=1.20.0',
         'opencv-python>=4.5.0',
         'torch>=2.0.0',
-        'ultralytics>=8.0.0',  # Only needed for cv_publisher with YOLO
+        'ultralytics>=8.0.0',  
     ],
     zip_safe=True,
     maintainer='cesar',
@@ -30,7 +30,8 @@ setup(
     entry_points={
         'console_scripts': [
             'depth_publisher = hydrus_cv.depth_publisher:main',
-            'cv_publisher = hydrus_cv.publisher:main',
+            'cv_publisher = hydrus_cv.cv_publisher:main',
+            'map_visualizer = hydrus_cv.map_visualizer:main',
         ],
     },
 )

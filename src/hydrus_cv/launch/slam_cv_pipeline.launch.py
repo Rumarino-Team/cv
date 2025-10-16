@@ -3,6 +3,7 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition
 import os
 
 
@@ -219,12 +220,13 @@ def generate_launch_description():
         ]
     )
     
-    # 3. Depth Publisher Node (DepthAnything V2)
+    # 3. Depth Publisher Node (DepthAnything V2) - Only run if depth is enabled
     depth_publisher_node = Node(
         package='hydrus_cv',
         executable='depth_publisher',
         name='depth_publisher',
         output='screen',
+        condition=IfCondition(LaunchConfiguration('orb_use_depth')),
         parameters=[{
             'rgb_topic': LaunchConfiguration('rgb_topic'),
             'depth_output_topic': LaunchConfiguration('depth_topic'),
@@ -246,6 +248,20 @@ def generate_launch_description():
             'imu_topic': LaunchConfiguration('orb_pose_topic'),
             'yolo_model_path': LaunchConfiguration('yolo_model_path'),
             'depth_model_path': LaunchConfiguration('depth_model_path'),
+        }]
+    )
+    
+    # 5. Map Visualizer Node (RViz markers)
+    map_visualizer_node = Node(
+        package='hydrus_cv',
+        executable='map_visualizer',
+        name='map_visualizer',
+        output='screen',
+        parameters=[{
+            'map_topic': 'detections',
+            'marker_topic': 'object_markers',
+            'world_frame': LaunchConfiguration('orb_world_frame'),
+            'marker_lifetime': 1.0,
         }]
     )
     
@@ -291,4 +307,7 @@ def generate_launch_description():
             period=7.0,
             actions=[cv_publisher_node]
         ),
+        
+        # 4. Start map visualizer immediately for RViz
+        map_visualizer_node,
     ])

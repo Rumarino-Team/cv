@@ -1,0 +1,96 @@
+
+camera:
+  # Source type: 'camera' for USB/built-in cameras, 'video' for video files
+  source_type: 'video'
+  
+  # Camera device index: 0, 1, 2, etc. (used when source_type is 'camera')
+  device: '0'
+  
+  # Path to video file (used when source_type is 'video')
+  video_path: '/home/cesar/Projects/auv/test.mp4'
+  
+  # Loop video when it ends (only applies to video files)
+  loop_video: true
+  
+  # Image resolution
+  image_width: 640
+  image_height: 480
+  
+  # Frame rate
+  framerate: 30.0
+  
+  # Pixel format (for reference, not used by camera_ros)
+  pixel_format: 'yuyv'
+
+topics:
+  rgb_topic: '/camera1/image_raw'
+  depth_topic: '/depth_anything/depth'
+  camera_info_topic: '/camera1/camera_info'
+  orb_pose_topic: '/orb_slam3/camera_pose'
+  orb_path_topic: '/orb_slam3/camera_path'
+
+orb_slam3:
+  vocabulary_path: '~/Projects/ORB_SLAM3/Vocabulary/ORBvoc.txt'
+  settings_path: '~/Projects/auv/src/orb_slam/config/webcam.yaml'
+  use_viewer: true
+  use_depth: true
+  world_frame_id: 'world'
+  camera_frame_id: 'camera'
+  queue_size: 10
+  publish_tf: true
+  startup_delay: 5.0
+
+depth_estimation:
+  model_path: '~/Projects/auv/weights/dav2_s.pt'
+  publish_rate: 10.0
+  enabled: true
+
+# YOLO Object Detection
+yolo:
+  model_path: '../../weights/yolov8.pt'
+  detections_topic: 'yolo_detections'
+  confidence_threshold: 0.25
+  startup_delay: 6.0
+  # Annotated image output
+  publish_annotated_image: true
+  annotated_image_topic: 'annotated_image'
+
+# 3D Mapping and Object Tracking
+computer_vision:
+  startup_delay: 7.0
+  map_objects_topic: 'map_objects'
+
+visualization:
+  # Enable/disable marker visualization in RViz
+  enabled: true
+  # Input topic with mapped object data
+  map_topic: 'map_objects'
+  # Output topic for RViz markers
+  marker_topic: 'detection_markers'
+  # TF frame for markers (must match ORB-SLAM world_frame_id)
+  frame_id: 'world'
+  # Startup delay (seconds)
+  startup_delay: 7.5
+
+performance:
+  camera_startup_delay: 0.0
+  orb_startup_delay: 5.0
+  cv_startup_delay: 7.0
+  priorities:
+    camera: 0
+    depth_estimation: -1
+    orb_slam: 0
+    cv_processing: -2
+
+debug:
+  log_level: 'INFO'
+  save_trajectories: true
+  output_dir: '~/Projects/auv/ros2_ws/output'
+  enable_profiling: false
+
+advanced:
+  use_cuda: true
+  cuda_device: 0
+  num_threads: 4
+  max_queue_size: 10
+  sync_tolerance: 0.1

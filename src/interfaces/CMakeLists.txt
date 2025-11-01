@@ -9,13 +9,16 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(vision_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 # Generate messages and actions
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/MovingState.msg"
   "msg/Map.msg"
   "msg/MapObject.msg"
-  DEPENDENCIES vision_msgs
+  "msg/Detection.msg"
+  "msg/DetectionArray.msg"
+  DEPENDENCIES vision_msgs std_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)

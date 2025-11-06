@@ -54,7 +54,7 @@ if depth_anything_available:
 
 class YOLOModelManager:
     def __init__(self, model_path: str):
-        self.model: YOLO = YOLO()
+        self.model: YOLO = YOLO(model_path)
 
     def detect(self, image: np.ndarray) -> list[Detection]:
         """

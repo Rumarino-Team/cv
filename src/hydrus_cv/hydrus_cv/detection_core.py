@@ -1,3 +1,4 @@
+from typing import Callable
 import numpy as np
 from ultralytics import YOLO
 from .custom_types import (
@@ -14,7 +15,7 @@ import torch
 import math
 import os
 import sys
-
+from collections import deque
 
 # Get the absolute path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -101,15 +102,13 @@ def calculate_point_3d(
             # Extract the depth values within the bounding box
             bbox_depth = depth_image[y_min_int:y_max_int, x_min_int:x_max_int]
             if bbox_depth.size > 0:
-                mean_depth = float(np.nanmean(bbox_depth))  # type: ignore
-                if not np.isnan(mean_depth):
+                median_depth = float(np.nanmedian(bbox_depth))  # type: ignore
+                if not np.isnan(median_depth):
                     # Clamp depth to reasonable range (0.3m to 10m for indoor scenes)
                     # This prevents extreme values from depth estimation errors
-                    z = np.clip(mean_depth, 0.3, 10.0)
+                    z = np.clip(median_depth, 0.3, 10.0)
                     
                     fx, fy, cx, cy = camera_intrinsic
-                    detection.depth = z
-
                     x_center = (x_min + x_max) / 2.0
                     y_center = (y_min + y_max) / 2.0
                     x = (x_center - cx) * z / fx
@@ -199,15 +198,11 @@ def map_3d_bounding_box(
     class_names: list[str]
 ):
     for detection in detections:
-        # Verify that 3D point has been calculated before mapping bounding box
         assert detection._point is not None, "Detection doesn't have a filled 3D point attribute."
         
-        # Convert class ID to class name
         cls_name = class_names[detection._cls] if detection._cls < len(class_names) else f"class_{detection._cls}"
         
-        # Check if this class has a defined 3D bounding box
         if cls_name not in box_map:
-            # Skip objects without defined 3D bounding boxes
             continue
         
         # Create 3D bounding box with the dimensions from box_map
@@ -221,6 +216,10 @@ def map_3d_bounding_box(
 def calculate_distance(p1: Point3D, p2: Point3D) -> float:
     return math.dist((p1.x, p1.y, p1.z), (p2.x, p2.y, p2.z))
 
+def calculate_median_detection(history: list[Detection], key_func: Callable):
+    sorted_detection = sorted(history, key=key_func)
+    mid = len(sorted_detection) //2
+    return sorted_detection[mid]
 
 def map_objects(
     state: MapState,
@@ -231,7 +230,15 @@ def map_objects(
     depth_image: DepthImage,
     imu_point: Point3D,
     imu_rotation: Rotation3D,
+    history_buffer: dict[int, deque[Detection]],
+    expected_frequencies: dict[str, int] | None = None
 ):
+    """
+    Map detected objects to a global 3D map with frequency-based eviction.
+    
+    :param expected_frequencies: Dictionary specifying expected count per class (e.g., {'buoy': 3, 'gate': 1}).
+                                 If None, no eviction is performed.
+    """
     calculate_point_3d(detections, depth_image, camera_intrinsic)
     transform_to_global(detections, imu_point, imu_rotation)
     map_3d_bounding_box(detections, box_map, class_name)
@@ -256,6 +263,7 @@ def map_objects(
     # Now match/update existing objects
     # Use a larger threshold to handle depth estimation noise and static camera scenarios
     new_object_threshold = 100.0  # Increased from 0.5 to 10.0 meters
+    eviction_size = 5
     matched_detections = set()  # Track which detections have been matched
 
     for obj in state.objects:
@@ -289,9 +297,15 @@ def map_objects(
 
         # If we found a close match, update the object
         if best_detection is not None and best_object_match_distance < new_object_threshold:
-            obj.conf = best_detection._conf
-            obj.point = best_detection._point
-            obj.bbox_3d = best_detection._bbox_3d
+            if len(history_buffer[obj.track_id]) == eviction_size:
+                history_buffer[obj.track_id].popleft()
+            history_buffer[obj.track_id].append(best_detection)
+            #Smothing Techniques
+            median_map_object = calculate_median_detection(history_buffer[obj.track_id], lambda x: x._distance )
+            obj.conf = median_map_object._conf
+            obj.point = median_map_object._point
+            obj.bbox_3d = median_map_object._bbox_3d
+            obj.update_count += 1  # Increment update count
             matched_detections.add(best_detection_idx)
 
     # Add unmatched detections as new objects
@@ -311,3 +325,54 @@ def map_objects(
             state.objects.append(new_object)
             state.obj_frequencies[cls_name] = state.obj_frequencies.get(cls_name, 0) + 1
             state.id_counter += 1
+
+    # Eviction logic: Keep only the most frequently updated objects per class
+    if expected_frequencies is not None:
+        # Group objects by class
+        objects_by_class: dict[int, list[MapObject]] = {}
+        for obj in state.objects:
+            if obj.cls not in objects_by_class:
+                objects_by_class[obj.cls] = []
+            objects_by_class[obj.cls].append(obj)
+        
+        # For each class, keep only the expected number of most frequently updated objects
+        objects_to_keep = []
+        for cls_id, objs in objects_by_class.items():
+            if cls_id < 0 or cls_id >= len(class_name):
+                # Keep all objects of unknown classes
+                objects_to_keep.extend(objs)
+                continue
+            
+            cls_name = class_name[cls_id]
+            expected_count = expected_frequencies.get(cls_name, len(objs))
+            
+            if len(objs) <= expected_count:
+                # Keep all objects if we haven't exceeded the expected count
+                objects_to_keep.extend(objs)
+            else:
+                # Sort by update_count (descending) and keep the top N
+                sorted_objs = sorted(objs, key=lambda x: x.update_count, reverse=True)
+                kept = sorted_objs[:expected_count]
+                evicted = sorted_objs[expected_count:]
+                
+                objects_to_keep.extend(kept)
+                
+                # Clean up history buffers for evicted objects
+                for evicted_obj in evicted:
+                    if evicted_obj.track_id in history_buffer:
+                        del history_buffer[evicted_obj.track_id]
+                
+                # Update frequency count
+                state.obj_frequencies[cls_name] = expected_count
+        
+        # Update the objects list
+        state.objects = objects_to_keep
+
+    # Note: We don't need to add map objects to history_buffer here 
+    # as they are already being managed in the matching logic above
+
+
+
+
+
+

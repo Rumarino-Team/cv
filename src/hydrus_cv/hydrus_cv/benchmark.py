@@ -230,6 +230,7 @@ def calibrate_camera(calibration_image_path: str) -> CameraIntrinsics:
 
 
 def camera_simulation():
+    from collections import defaultdict, deque
     cv_manager = MockCamera(1280, 720, 3, 0, 1)
     # cv_manager = OpenCVManager()
     yolo_model = YOLOModelManager("./yolov11.pt")
@@ -240,6 +241,8 @@ def camera_simulation():
     depth_anything = DepthAnythingManager("../weights/dav2_s.pt")
     imu_mock = MockIMU()
     map_state = MapState()
+    detection_history = defaultdict(deque)
+    expected_frequencies = {"gate": 1, "buoy": 4, "shark": 2, "swordfish": 2}
 
     while True:
         frames = cv_manager.get_frames()

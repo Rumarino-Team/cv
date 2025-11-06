@@ -48,6 +48,7 @@ class MapObject:
     conf: float
     point: Point3D
     bbox_3d: BoundingBox3D
+    update_count: int = 0  # Track how many times this object has been updated
 
 
 @dataclass
@@ -55,5 +56,4 @@ class MapState:
     obj_frequencies: dict[str, int] = field(default_factory=dict)
     objects: list[MapObject] = field(default_factory=list)
     id_counter: int = 0
-    map_id_objects: dict[int, MapObject] = field(default_factory=dict)
     point_clouds: list[np.ndarray] = field(default_factory=list)

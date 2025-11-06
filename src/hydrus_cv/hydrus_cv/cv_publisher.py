@@ -1,3 +1,4 @@
+from collections import deque, defaultdict
 import rclpy
 from rclpy.node import Node
 from interfaces.msg import Map, Detection, DetectionArray
@@ -10,7 +11,6 @@ import numpy as np
 import os
 import sys
 from cv_bridge import CvBridge
-import cv2
 
 # Scripts from hydrus_cv reads from a thirdparty folder  that is supposed to be in the repo_root/thirdparty
 # and scripts are supposed to be in a ros2 workspace
@@ -76,7 +76,7 @@ class ComputerVisionPublisher(Node):
         self.last_detections: list[CustomDetection] = []  # Store latest YOLO detections
         self.map_state: MapState = MapState()
         self.bridge = CvBridge()
-
+        self.detection_history = defaultdict(deque)  # Dictionary of deques indexed by track_id
         # 3D bounding box dimensions for each class (width, height, depth in meters)
         # Format: "class_name": (width, height, depth)
         self.box_map = {
@@ -108,6 +108,15 @@ class ComputerVisionPublisher(Node):
             "backpack": (0.3, 0.4, 0.2),
             "handbag": (0.3, 0.3, 0.15),
             "suitcase": (0.5, 0.7, 0.25),
+        }
+        
+        # Expected frequencies: maximum number of objects per class to track
+        # If more objects are detected, keep only the most frequently updated ones
+        self.expected_frequencies = {
+            
+            # Common objects - adjust based on your use case
+            "bottle": 1,
+            # Add more classes as needed
         }
         
         self.get_logger().info("CV Publisher initialized - waiting for sensor data and detections...")
@@ -279,6 +288,8 @@ class ComputerVisionPublisher(Node):
             self.last_depth,
             self.last_position,
             self.last_rotation,
+            self.detection_history,
+            self.expected_frequencies  # Add expected frequencies parameter
         )
         # Create Map message with all detected objects
         map_msg = Map()

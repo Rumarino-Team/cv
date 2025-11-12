@@ -7,7 +7,17 @@ camera:
   device: '0'
   
   # Path to video file (used when source_type is 'video')
-  video_path: '/home/cesar/Projects/auv/test.mp4'
+  video_path: '/home/cesar/Projects/auv/test_imu.mp4'
+  
+  # IMU data folder (used when source_type is 'video')
+  # Folder should contain OpenCamera CSV files: *accel.csv, *gyro.csv, *magnetic.csv
+  # If this path is provided and exists, IMU data will automatically be published
+  # Leave empty ('') to disable IMU publishing from video
+  imu_data_folder: '/home/cesar/Projects/auv/open_camera_imu_data'
+  
+  # Enable/disable IMU data publishing (even if imu_data_folder is provided)
+  # Set to false to completely disable IMU, true to enable if data is available
+  enable_imu: false
   
   # Loop video when it ends (only applies to video files)
   loop_video: true
@@ -31,9 +41,11 @@ topics:
 
 orb_slam3:
   vocabulary_path: '~/Projects/ORB_SLAM3/Vocabulary/ORBvoc.txt'
-  settings_path: '~/Projects/auv/src/orb_slam/config/webcam.yaml'
+  settings_path: '/home/cesar/Projects/auv/src/orb_slam/config/camera_imu.yaml'
   use_viewer: true
   use_depth: true
+  use_imu: false  # Enable IMU-Inertial mode
+  imu_topic: '/camera/imu'  # IMU data topic
   world_frame_id: 'world'
   camera_frame_id: 'camera'
   queue_size: 10

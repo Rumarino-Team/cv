@@ -20,6 +20,8 @@ setup(
         "opencv-python>=4.5.0",
         "torch>=2.0.0",
         "ultralytics>=8.0.0",
+        "pandas>=1.3.0",
+        "scipy>=1.7.0",
     ],
     zip_safe=True,
     maintainer="cesar",

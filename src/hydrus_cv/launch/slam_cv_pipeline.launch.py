@@ -121,6 +121,18 @@ def generate_launch_description():
         description='Path to video file (used when source_type is "video")',
     )
 
+    imu_data_folder_arg = DeclareLaunchArgument(
+        "imu_data_folder",
+        default_value=str(get_config("camera.imu_data_folder", "")),
+        description="Path to folder containing IMU CSV files from OpenCamera (used with video playback). IMU publishing is automatic if folder exists.",
+    )
+
+    enable_imu_arg = DeclareLaunchArgument(
+        "enable_imu",
+        default_value=str(get_config("camera.enable_imu", True)).lower(),
+        description="Enable/disable IMU data publishing (even if imu_data_folder is provided). Set to false to completely disable IMU.",
+    )
+
     loop_video_arg = DeclareLaunchArgument(
         "loop_video",
         default_value=str(get_config("camera.loop_video", True)).lower(),
@@ -209,6 +221,18 @@ def generate_launch_description():
         "orb_use_depth",
         default_value=str(get_config("orb_slam3.use_depth", True)).lower(),
         description="Enable RGB-D mode in ORB-SLAM3",
+    )
+
+    orb_use_imu_arg = DeclareLaunchArgument(
+        "orb_use_imu",
+        default_value=str(get_config("orb_slam3.use_imu", False)).lower(),
+        description="Enable IMU-Inertial mode in ORB-SLAM3",
+    )
+
+    orb_imu_topic_arg = DeclareLaunchArgument(
+        "orb_imu_topic",
+        default_value=str(get_config("orb_slam3.imu_topic", "/camera/imu")),
+        description="Topic name for IMU data consumed by ORB-SLAM3",
     )
 
     orb_pose_topic_arg = DeclareLaunchArgument(
@@ -346,10 +370,15 @@ def generate_launch_description():
                     LaunchConfiguration("camera_device"), value_type=int
                 ),
                 "video_path": LaunchConfiguration("video_path"),
+                "imu_data_folder": LaunchConfiguration("imu_data_folder"),
+                "enable_imu": ParameterValue(
+                    LaunchConfiguration("enable_imu"), value_type=bool
+                ),
                 "loop_video": ParameterValue(
                     LaunchConfiguration("loop_video"), value_type=bool
                 ),
                 "rgb_topic": LaunchConfiguration("rgb_topic"),
+                "imu_topic": LaunchConfiguration("orb_imu_topic"),
                 "camera_info_topic": LaunchConfiguration("camera_info_topic"),
                 "frame_rate": ParameterValue(
                     LaunchConfiguration("framerate"), value_type=float
@@ -380,8 +409,12 @@ def generate_launch_description():
                 "use_depth": ParameterValue(
                     LaunchConfiguration("orb_use_depth"), value_type=bool
                 ),
+                "use_imu": ParameterValue(
+                    LaunchConfiguration("orb_use_imu"), value_type=bool
+                ),
                 "image_topic": LaunchConfiguration("rgb_topic"),
                 "depth_topic": LaunchConfiguration("depth_topic"),
+                "imu_topic": LaunchConfiguration("orb_imu_topic"),
                 "pose_topic": LaunchConfiguration("orb_pose_topic"),
                 "path_topic": LaunchConfiguration("orb_path_topic"),
                 "world_frame_id": LaunchConfiguration("orb_world_frame"),
@@ -484,6 +517,8 @@ def generate_launch_description():
             source_type_arg,
             camera_device_arg,
             video_path_arg,
+            imu_data_folder_arg,
+            enable_imu_arg,
             loop_video_arg,
             image_width_arg,
             image_height_arg,
@@ -496,6 +531,8 @@ def generate_launch_description():
             orb_settings_arg,
             use_orb_viewer_arg,
             orb_use_depth_arg,
+            orb_use_imu_arg,
+            orb_imu_topic_arg,
             orb_pose_topic_arg,
             orb_path_topic_arg,
             orb_world_frame_arg,

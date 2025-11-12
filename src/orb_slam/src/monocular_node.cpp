@@ -21,6 +21,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
@@ -40,6 +41,7 @@
 #include <sophus/se3.hpp>
 
 #include "System.h"
+#include "ImuTypes.h"
 
 using namespace std;
 
@@ -54,9 +56,11 @@ public:
         this->declare_parameter<std::string>("settings_path", "");
         this->declare_parameter<bool>("use_viewer", true);
         this->declare_parameter<bool>("use_depth", false);  // Enable RGB-D mode
+        this->declare_parameter<bool>("use_imu", false);  // Enable IMU-Inertial mode
         
         this->declare_parameter<std::string>("image_topic", "/camera/image_raw");
         this->declare_parameter<std::string>("depth_topic", "/camera/depth/image_raw");
+        this->declare_parameter<std::string>("imu_topic", "/imu");
         this->declare_parameter<std::string>("pose_topic", "orb_slam3/camera_pose");
         this->declare_parameter<std::string>("odom_topic", "orb_slam3/camera_odom");
         this->declare_parameter<std::string>("path_topic", "orb_slam3/camera_path");
@@ -70,9 +74,11 @@ public:
         std::string settings_path = this->get_parameter("settings_path").as_string();
         bool use_viewer = this->get_parameter("use_viewer").as_bool();
         use_depth_ = this->get_parameter("use_depth").as_bool();
+        use_imu_ = this->get_parameter("use_imu").as_bool();
         
         std::string image_topic = this->get_parameter("image_topic").as_string();
         std::string depth_topic = this->get_parameter("depth_topic").as_string();
+        std::string imu_topic = this->get_parameter("imu_topic").as_string();
         std::string pose_topic = this->get_parameter("pose_topic").as_string();
         std::string odom_topic = this->get_parameter("odom_topic").as_string();
         std::string path_topic = this->get_parameter("path_topic").as_string();
@@ -96,6 +102,9 @@ public:
         if (use_depth_) {
             sensor_mode = ORB_SLAM3::System::RGBD;
             RCLCPP_INFO(this->get_logger(), "=== RGB-D SLAM MODE ===");
+        } else if (use_imu_) {
+            sensor_mode = ORB_SLAM3::System::IMU_MONOCULAR;
+            RCLCPP_INFO(this->get_logger(), "=== MONOCULAR-INERTIAL SLAM MODE ===");
         } else {
             sensor_mode = ORB_SLAM3::System::MONOCULAR;
             RCLCPP_INFO(this->get_logger(), "=== MONOCULAR SLAM MODE ===");
@@ -107,6 +116,9 @@ public:
         RCLCPP_INFO(this->get_logger(), "Image topic: %s", image_topic.c_str());
         if (use_depth_) {
             RCLCPP_INFO(this->get_logger(), "Depth topic: %s", depth_topic.c_str());
+        }
+        if (use_imu_) {
+            RCLCPP_INFO(this->get_logger(), "IMU topic: %s", imu_topic.c_str());
         }
         RCLCPP_INFO(this->get_logger(), "Pose topic: %s", pose_topic.c_str());
         RCLCPP_INFO(this->get_logger(), "Odom topic: %s", odom_topic.c_str());
@@ -134,6 +146,14 @@ public:
                 depth_topic,
                 queue_size,
                 std::bind(&SlamNode::depthCallback, this, std::placeholders::_1)
+            );
+        }
+
+        if (use_imu_) {
+            imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
+                imu_topic,
+                queue_size,
+                std::bind(&SlamNode::imuCallback, this, std::placeholders::_1)
             );
         }
 
@@ -167,6 +187,14 @@ public:
     }
 
 private:
+    void imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
+    {
+        std::lock_guard<std::mutex> lock(imu_mutex_);
+        
+        // Buffer IMU messages for preintegration between frames
+        imu_buffer_.push_back(imu_msg);
+    }
+
     void depthCallback(const sensor_msgs::msg::Image::SharedPtr depth_msg)
     {
         std::lock_guard<std::mutex> lock(depth_mutex_);
@@ -207,8 +235,43 @@ private:
                     "RGB-D mode enabled but no depth data received yet");
                 return;
             }
+        } else if (use_imu_) {
+            // IMU-Monocular tracking with preintegration
+            std::vector<ORB_SLAM3::IMU::Point> vImuMeas;
+            
+            {
+                std::lock_guard<std::mutex> lock(imu_mutex_);
+                
+                // Convert buffered ROS IMU messages to ORB-SLAM3 format
+                for (const auto& imu_msg : imu_buffer_) {
+                    double imu_timestamp = imu_msg->header.stamp.sec + imu_msg->header.stamp.nanosec * 1e-9;
+                    
+                    // Create IMU measurement (acceleration, angular velocity, timestamp)
+                    ORB_SLAM3::IMU::Point imu_point(
+                        imu_msg->linear_acceleration.x,
+                        imu_msg->linear_acceleration.y,
+                        imu_msg->linear_acceleration.z,
+                        imu_msg->angular_velocity.x,
+                        imu_msg->angular_velocity.y,
+                        imu_msg->angular_velocity.z,
+                        imu_timestamp
+                    );
+                    vImuMeas.push_back(imu_point);
+                }
+                
+                // Clear buffer after processing
+                imu_buffer_.clear();
+            }
+            
+            // Monocular + IMU tracking with preintegration
+            Tcw_se3 = slam_system_->TrackMonocular(cv_ptr->image, timestamp, vImuMeas);
+            
+            if (!vImuMeas.empty()) {
+                RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                    "Using %zu IMU measurements for tracking", vImuMeas.size());
+            }
         } else {
-            // Monocular tracking
+            // Monocular tracking (no IMU)
             Tcw_se3 = slam_system_->TrackMonocular(cv_ptr->image, timestamp);
         }
 
@@ -338,6 +401,7 @@ private:
     // ROS2 subscribers
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depth_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     
     // ROS2 publishers
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
@@ -353,6 +417,7 @@ private:
     std::string camera_frame_id_;
     bool publish_tf_;
     bool use_depth_;
+    bool use_imu_;
     
     // Odometry tracking for velocity computation
     double last_pose_time_ = 0.0;
@@ -362,6 +427,10 @@ private:
     // Depth data
     cv_bridge::CvImagePtr latest_depth_;
     std::mutex depth_mutex_;
+    
+    // IMU data buffer for preintegration
+    std::vector<sensor_msgs::msg::Imu::SharedPtr> imu_buffer_;
+    std::mutex imu_mutex_;
 };
 
 int main(int argc, char** argv)
